@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solmar City — Low Tide Hustle</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #1a1420; font-family: Georgia, 'Times New Roman', serif; }
+  #game-root { position: fixed; inset: 0; }
+  #game-root canvas { display: block; }
+  #hud-root { position: fixed; inset: 0; pointer-events: none; color: #fff; display: none; }
+  .hud-top { position: absolute; top: 14px; left: 16px; right: 16px; display: flex; justify-content: space-between; }
+  .hud-left, .hud-right { display: flex; flex-direction: column; gap: 5px; }
+  .hud-right { align-items: flex-end; text-align: right; }
+  .hud-barwrap { display: flex; align-items: center; gap: 8px; }
+  .hud-barlabel { font-size: 10px; letter-spacing: 2px; width: 52px; text-shadow: 0 1px 3px #000; }
+  .hud-bartrack { width: 170px; height: 11px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.5); }
+  .hud-barfill { height: 100%; width: 100%; transition: width 0.15s; }
+  .hud-cash { font-size: 26px; font-weight: bold; color: #9fe8a8; text-shadow: 0 2px 4px #000; }
+  .hud-stars { font-size: 24px; color: #ffd76a; text-shadow: 0 2px 4px #000; letter-spacing: 3px; min-height: 28px; }
+  .hud-weapon { font-size: 15px; letter-spacing: 2px; text-shadow: 0 1px 3px #000; }
+  .hud-clock { font-size: 15px; text-shadow: 0 1px 3px #000; }
+  .hud-district { font-size: 17px; font-style: italic; color: #ffd9a8; text-shadow: 0 1px 3px #000; }
+  .hud-objective { position: absolute; top: 92px; left: 50%; transform: translateX(-50%); max-width: 70%; text-align: center; font-size: 17px; color: #ffe9b0; text-shadow: 0 2px 5px #000; background: rgba(0,0,0,0.35); padding: 5px 16px; border-radius: 4px; }
+  .hud-toast { position: absolute; bottom: 128px; left: 50%; transform: translateX(-50%); max-width: 74%; text-align: center; font-size: 18px; font-style: italic; color: #fff; text-shadow: 0 2px 5px #000; opacity: 0; transition: opacity 0.4s; }
+  .hud-prompt { position: absolute; bottom: 96px; left: 50%; transform: translateX(-50%); font-size: 16px; color: #fff; background: rgba(0,0,0,0.55); padding: 6px 14px; border-radius: 4px; display: none; }
+  .hud-crosshair { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 22px; color: rgba(255,255,255,0.85); text-shadow: 0 0 4px #000; }
+  .hud-mapwrap { position: absolute; left: 16px; bottom: 16px; }
+  .hud-map { border: 2px solid rgba(255,255,255,0.55); border-radius: 6px; background: #243447; }
+  .hud-speed { font-size: 19px; font-weight: bold; text-align: center; text-shadow: 0 1px 3px #000; margin-top: 4px; }
+  .hud-bust { position: absolute; left: 50%; top: 38%; transform: translateX(-50%); width: 280px; text-align: center; }
+  .hud-bust-label { font-size: 22px; letter-spacing: 6px; color: #7ab8e8; text-shadow: 0 2px 5px #000; }
+  .hud-bust-bar { height: 10px; background: #7ab8e8; width: 0%; margin-top: 5px; border: 1px solid #fff; }
+  .screen { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #fff; background: linear-gradient(rgba(20,10,24,0.42), rgba(20,10,24,0.72)); z-index: 5; }
+  .screen h1 { font-size: 58px; margin: 0 0 4px; letter-spacing: 4px; color: #ffd76a; text-shadow: 0 4px 14px #000; }
+  .screen h2 { font-size: 24px; margin: 0 0 18px; font-style: italic; font-weight: normal; color: #ffb98a; text-shadow: 0 2px 8px #000; }
+  .screen p { max-width: 560px; font-size: 16px; line-height: 1.55; text-shadow: 0 1px 4px #000; margin: 6px 20px; }
+  .screen .controls { font-size: 13.5px; color: #e8dcc8; line-height: 1.7; }
+  .screen button { pointer-events: auto; margin: 7px; padding: 11px 34px; font-family: inherit; font-size: 17px; letter-spacing: 2px; color: #1a1420; background: #ffd76a; border: none; border-radius: 4px; cursor: pointer; }
+  .screen button:hover { background: #ffe9a8; }
+  .screen button.ghost { background: transparent; color: #ffd76a; border: 1px solid #ffd76a; }
+  #screen-over h1 { color: #e84f4f; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+</script>
+</head>
+<body>
+<div id="game-root"></div>
+<div id="hud-root"></div>
+
+<div class="screen" id="screen-title">
+  <h1>SOLMAR CITY</h1>
+  <h2>— Low Tide Hustle —</h2>
+  <p>Rio Solano owes Vera the fixer more than he can pay. Three jobs across a sunset island city —
+     a package at the pier, a gold Comet GT at the casino, and a payday run with the law on his tail —
+     will clear the debt or bury him.</p>
+  <div>
+    <button id="btn-new">NEW GAME</button>
+    <button id="btn-continue" class="ghost">CONTINUE</button>
+  </div>
+  <p class="controls">WASD move / drive &nbsp;·&nbsp; Mouse look (click to lock) &nbsp;·&nbsp; E enter car &nbsp;·&nbsp; Shift run<br>
+  Mouse fire pistol &nbsp;·&nbsp; F punch &nbsp;·&nbsp; Space handbrake &nbsp;·&nbsp; M next job &nbsp;·&nbsp; N sound &nbsp;·&nbsp; Esc pause</p>
+</div>
+
+<div class="screen" id="screen-pause">
+  <h1>PAUSED</h1>
+  <h2>the tide waits for no one</h2>
+  <div>
+    <button id="btn-resume">RESUME</button>
+    <button id="btn-save-title" class="ghost">SAVE &amp; TITLE</button>
+  </div>
+</div>
+
+<div class="screen" id="screen-over">
+  <h1 id="over-title">WASTED</h1>
+  <p id="over-text"></p>
+  <div>
+    <button id="btn-respawn">BACK TO THE CITY</button>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
